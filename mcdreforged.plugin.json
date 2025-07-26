@@ -1,0 +1,12 @@
+{
+    "id": "server_status",
+    "version": "1.0.0",
+    "name": "server_status",
+    "description": "",
+    "author": "",
+    "link": "",
+    "dependencies": {
+        "mcdreforged": "^2.0.0",
+        "minecraft_data_api": ">=1.1.0"
+    }
+}
