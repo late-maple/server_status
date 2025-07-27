@@ -2,9 +2,9 @@
     "id": "server_status",
     "version": "1.2.5",
     "name": "server_status",
-    "description": "",
-    "author": "",
-    "link": "",
+    "description": "一个功能强大的 MCDReforged 插件，用于监控 Minecraft 服务器状态，实时展示服务器运行时间、内存占用、在线玩家等关键信息。",
+    "author": "late_maple",
+    "link": "https://github.com/latemaple1/server_status",
     "dependencies": {
         "mcdreforged": "^2.0.0",
         "minecraft_data_api": ">=1.1.0"
