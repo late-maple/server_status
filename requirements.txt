@@ -1,1 +1,8 @@
-
+psutil
+requests
+json
+flask
+datetime
+flask_cors
+logging
+mcdreforged>=2.14.7

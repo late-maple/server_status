@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>服务器状态面板</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .servers-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .server-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .server-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+        }
+        .server-name {
+            font-size: 1.4em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        .status-indicator {
+            font-size: 1.5em;
+        }
+        .online {
+            color: #28a745;
+        }
+        .offline {
+            color: #dc3545;
+        }
+        .status-item {
+            margin: 12px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .label {
+            font-weight: 600;
+            color: #555;
+        }
+        .value {
+            color: #333;
+            font-weight: 500;
+        }
+        .players-list, .bots-list-content {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        .player-tag, .bot-tag {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+        .player-tag {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .bot-tag {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        .bots-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px dashed #ddd;
+        }
+        .bots-toggle {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(79, 172, 254, 0.3);
+        }
+        .bots-toggle:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.4);
+        }
+        .bots-toggle:active {
+            transform: translateY(0);
+        }
+        .bots-list {
+            margin-top: 12px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        .hidden {
+            display: none;
+        }
+        .empty-list {
+            color: #888;
+            font-style: italic;
+            font-size: 0.9em;
+        }
+        .update-time {
+            font-size: 0.8em;
+            color: #888;
+            text-align: right;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎮 服务器状态监控面板</h1>
+    </div>
+    
+    <div class="servers-container" id="serversContainer">
+        <!-- 服务器卡片将通过JavaScript动态生成 -->
+        <div class="loading">加载中...</div>
+    </div>
+
+    <script>
+        function formatUptime(seconds) {
+            const days = Math.floor(seconds / 86400);
+            const hours = Math.floor((seconds % 86400) / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            
+            if (days > 0) {
+                return `${days}天 ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }
+            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function isServerOnline(lastUpdate) {
+            if (!lastUpdate) return false;
+            const lastUpdateDate = new Date(lastUpdate);
+            const now = new Date();
+            const diffMinutes = (now - lastUpdateDate) / (1000 * 60);
+            return diffMinutes <= 6; // 分钟 更新认为在线 比更新间隔稍大
+        }
+
+        function toggleBots(serverId) {
+            const botsList = document.getElementById(`bots-${serverId}`);
+            const toggleBtn = document.getElementById(`toggle-${serverId}`);
+            if (botsList.classList.contains('hidden')) {
+                botsList.classList.remove('hidden');
+                toggleBtn.textContent = '隐藏假人玩家列表';
+            } else {
+                botsList.classList.add('hidden');
+                toggleBtn.textContent = '显示假人玩家列表 (' + (botsList.dataset.count || 0) + ')';
+            }
+        }
+
+        function updateServerStatus() {
+            // 根据当前访问方式选择合适的API路径
+            let apiUrl = '/status/api/servers';
+            // 当直接访问localhost:5000时使用直接路径
+            if (window.location.port === '5000') {
+                apiUrl = '/api/servers';
+            }
+
+            fetch(apiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.getElementById('serversContainer');
+                    if (!data || Object.keys(data).length === 0) {
+                        container.innerHTML = '<div class="server-card" style="text-align: center; grid-column: 1 / -1;"><h3>暂无服务器数据</h3><p>请确保插件已正确配置并运行</p></div>';
+                        return;
+                    }
+                    
+                    container.innerHTML = '';
+                    
+                    for (const [serverId, server] of Object.entries(data)) {
+                        const isOnline = isServerOnline(server.last_update);
+                        const card = document.createElement('div');
+                        card.className = 'server-card';
+                        
+                        // 准备玩家和假人列表
+                        const players = server.players || [];
+                        const bots = server.bots || [];
+                        const botCount = bots.length;
+                        
+                        // 构建真实玩家列表HTML
+                        let playersHtml = '';
+                        if (players.length > 0) {
+                            playersHtml = players.map(player => 
+                                `<span class="player-tag">${player}</span>`
+                            ).join('');
+                        } else {
+                            playersHtml = '<span class="empty-list">当前没有真实玩家在线</span>';
+                        }
+                        
+                        // 构建假人玩家列表HTML
+                        let botsHtml = '';
+                        if (botCount > 0) {
+                            botsHtml = bots.map(bot => 
+                                `<span class="bot-tag">${bot}</span>`
+                            ).join('');
+                        } else {
+                            botsHtml = '<span class="empty-list">当前没有假人玩家在线</span>';
+                        }
+                        
+                        card.innerHTML = `
+                            <div class="server-name">
+                                <span>${server.server_name || serverId}</span>
+                                <span class="status-indicator ${isOnline ? 'online' : 'offline'}">${isOnline ? '●' : '○'}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="label">状态:</span>
+                                <span class="value">${isOnline ? '🟢 在线' : '🔴 离线'}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="label">内存使用率:</span>
+                                <span class="value">${server.memory_usage ? server.memory_usage.toFixed(1) + '%' : 'N/A'}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="label">运行时间:</span>
+                                <span class="value">${server.uptime ? formatUptime(server.uptime) : 'N/A'}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="label">真实玩家:</span>
+                                <span class="value">${server.player_count || 0}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="label">玩家列表:</span>
+                            </div>
+                            <div class="players-list">
+                                ${playersHtml}
+                            </div>
+                            <div class="bots-section">
+                                <div class="status-item">
+                                    <span class="label">假人玩家:</span>
+                                    <span class="value">${botCount}</span>
+                                </div>
+                                <button class="bots-toggle" id="toggle-${serverId}" onclick="toggleBots('${serverId}')">
+                                    ${botCount > 0 ? '显示假人玩家列表 (' + botCount + ')' : '暂无假人玩家'}
+                                </button>
+                                <div class="bots-list hidden" id="bots-${serverId}" data-count="${botCount}">
+                                    <div class="bots-list-content">
+                                        ${botsHtml}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="update-time">
+                                最后更新: ${server.last_update ? new Date(server.last_update).toLocaleString('zh-CN') : 'N/A'}
+                            </div>
+                        `;
+                        
+                        container.appendChild(card);
+                    }
+                })
+                .catch(error => {
+                    console.error('获取服务器状态失败:', error);
+                    document.getElementById('serversContainer').innerHTML = 
+                        '<div class="server-card" style="text-align: center; grid-column: 1 / -1;">' +
+                        '<h3>❌ 获取数据失败</h3>' +
+                        '<p>请检查网络连接和后端服务</p>' +
+                        '<p style="font-size: 0.9em; color: #888;">错误信息: ' + error.message + '</p>' +
+                        '</div>';
+                });
+        }
+
+        // 初始加载
+        updateServerStatus();
+        
+        // 每30秒刷新一次
+        setInterval(updateServerStatus, 300000);
+    </script>
+</body>
+</html>
