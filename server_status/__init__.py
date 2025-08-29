@@ -21,7 +21,7 @@ MYSQL_CONFIG = {
     'host': 'localhost',
     'database': 'server_status',
     'user': 'server_status',
-    'password': 'SCTserver',
+    'password': 'status',
     'charset': 'utf8mb4',
     'autocommit': True,
     'raise_on_warnings': False,
