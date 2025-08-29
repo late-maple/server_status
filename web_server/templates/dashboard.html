@@ -4,18 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>服务器状态面板</title>
+    <link rel="stylesheet" href="../static/server-status.css">
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
             padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            
             min-height: 100vh;
         }
         .header {
             text-align: center;
             margin-bottom: 30px;
-            color: white;
+            color: #333;
         }
         .header h1 {
             margin: 0;
@@ -87,14 +88,11 @@
             border-radius: 20px;
             font-size: 0.85em;
             font-weight: 500;
-        }
-        .player-tag {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background-color: #667eea;
             color: white;
         }
         .bot-tag {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
+            background-color: #f093fb;
         }
         .bots-section {
             margin-top: 15px;
@@ -102,7 +100,7 @@
             border-top: 1px dashed #ddd;
         }
         .bots-toggle {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            background-color: #4facfe;
             border: none;
             color: white;
             padding: 8px 16px;
@@ -137,11 +135,86 @@
             font-size: 0.9em;
         }
         .update-time {
-            font-size: 0.8em;
-            color: #888;
-            text-align: right;
-            margin-top: 10px;
-        }
+                    font-size: 0.8em;
+                    color: #888;
+                    text-align: right;
+                    margin-top: 10px;
+                }
+                /* 排行榜组件样式 */
+                .leaderboard-container {
+                    max-width: 800px;
+                    margin: 0 auto;
+                    background: rgba(255, 255, 255, 0.15);
+                    border-radius: 12px;
+                    padding: 20px;
+                    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+                    backdrop-filter: blur(4px);
+                    border: 1px solid rgba(255,255,255,0.2);
+                }
+                .leaderboard-item {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 15px;
+                    border-bottom: 1px solid rgba(255,255,255,0.1);
+                }
+                .leaderboard-item:last-child {
+                    border-bottom: none;
+                }
+                .player-rank {
+                    font-size: 1.5em;
+                    font-weight: bold;
+                    color: #667eea;
+                    min-width: 40px;
+                }
+                .player-name {
+                    font-size: 1.2em;
+                    font-weight: 600;
+                    color: white;
+                    flex-grow: 1;
+                }
+                .player-server {
+                    font-size: 1em;
+                    color: #ccc;
+                    min-width: 150px;
+                }
+                .player-last-played {
+                    font-size: 1em;
+                    color: #ccc;
+                    min-width: 200px;
+                }
+                .player-time-since-last-played {
+                    font-size: 1.1em;
+                    font-weight: 600;
+                    color: #e74c3c;
+                    min-width: 150px;
+                }
+                .player-total-time, .player-weekly-time, .player-monthly-time {
+                    font-size: 1em;
+                    color: #ccc;
+                    min-width: 150px;
+                }
+                .rank-1 .player-rank {
+                    color: #ffd700;
+                }
+                .rank-2 .player-rank {
+                    color: #c0c0c0;
+                }
+                .rank-3 .player-rank {
+                    color: #cd7f32;
+                }
+                .loading {
+                    text-align: center;
+                    font-size: 1.2em;
+                    color: #ccc;
+                    padding: 20px;
+                }
+                .error-message {
+                    text-align: center;
+                    font-size: 1.2em;
+                    color: #e74c3c;
+                    padding: 20px;
+                }
     </style>
 </head>
 <body>
@@ -154,18 +227,54 @@
         <div class="loading">加载中...</div>
     </div>
 
+    <!-- 玩家查询组件 -->
+    <div style="max-width: 1200px; margin: 30px auto 0; padding: 20px;">
+        <div class="header" style="margin-bottom: 20px;">
+            <h2 style="margin: 0; color: white;">🔍 查询玩家游戏时长</h2>
+            <p style="margin: 10px 0 0; color: #ccc;">输入玩家名称查看其在各服务器的游戏统计信息和历史记录</p>
+        </div>
+        <div id="playerSearchContainer" style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+            <input type="text" id="playerNameInput" placeholder="输入玩家名称查询游戏时长" style="padding: 12px 20px; border-radius: 25px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.15); color: white; backdrop-filter: blur(5px); font-size: 1em; min-width: 300px; outline: none;">
+            <button id="searchPlayerBtn" onclick="searchPlayer()" style="padding: 12px 25px; border-radius: 25px; border: none; background: rgba(79, 172, 254, 0.3); color: white; backdrop-filter: blur(5px); font-size: 1em; cursor: pointer; transition: all 0.3s ease;">🔍 查询</button>
+            <button id="clearSearchBtn" onclick="clearSearch()" style="padding: 12px 25px; border-radius: 25px; border: none; background: rgba(220, 53, 69, 0.3); color: white; backdrop-filter: blur(5px); font-size: 1em; cursor: pointer; transition: all 0.3s ease; display: none;">🗑️ 清空</button>
+        </div>
+        <!-- 玩家查询结果显示区域 -->
+                <div id="playerSearchResult" style="display: none;">
+                    <!-- 查询结果将通过JavaScript动态生成 -->
+                </div>
+            </div>
+        
+            <!-- 排行榜组件 -->
+            <div style="max-width: 1200px; margin: 30px auto 0; padding: 20px;">
+                <div class="header" style="margin-bottom: 20px;">
+                    <h2 style="margin: 0; color: white;">🏆 玩家排行榜</h2>
+                    <p style="margin: 10px 0 0; color: #ccc;">查看服务器玩家排行榜</p>
+                </div>
+                
+                <!-- 排行榜标签页 -->
+                <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                    <button id="lastPlayedTab" onclick="showLeaderboard('lastPlayed')" style="padding: 12px 25px; border-radius: 25px; border: none; background: rgba(79, 172, 254, 0.3); color: white; backdrop-filter: blur(5px); font-size: 1em; cursor: pointer; transition: all 0.3s ease;">摸鱼榜</button>
+                </div>
+                
+                <div class="leaderboard-container">
+                    <div id="leaderboardContent">
+                        <div class="loading">加载中...</div>
+                    </div>
+                </div>
+            </div>
+
     <script>
         function formatUptime(seconds) {
-            const days = Math.floor(seconds / 86400);
-            const hours = Math.floor((seconds % 86400) / 3600);
-            const minutes = Math.floor((seconds % 3600) / 60);
-            const secs = seconds % 60;
-            
-            if (days > 0) {
-                return `${days}天 ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-            }
-            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-        }
+           const days = Math.floor(seconds / 86400);
+           const hours = Math.floor((seconds % 86400) / 3600);
+           const minutes = Math.floor((seconds % 3600) / 60);
+           const secs = seconds % 60;
+           
+           if (days > 0) {
+               return days + '天 ' + hours.toString().padStart(2, '0') + ':' + minutes.toString().padStart(2, '0') + ':' + secs.toString().padStart(2, '0');
+           }
+           return hours.toString().padStart(2, '0') + ':' + minutes.toString().padStart(2, '0') + ':' + secs.toString().padStart(2, '0');
+       }
 
         function isServerOnline(lastUpdate) {
             if (!lastUpdate) return false;
@@ -176,18 +285,18 @@
         }
 
         function toggleBots(serverId) {
-            const botsList = document.getElementById(`bots-${serverId}`);
-            const toggleBtn = document.getElementById(`toggle-${serverId}`);
-            if (botsList.classList.contains('hidden')) {
-                botsList.classList.remove('hidden');
-                toggleBtn.textContent = '隐藏假人玩家列表';
-            } else {
-                botsList.classList.add('hidden');
-                toggleBtn.textContent = '显示假人玩家列表 (' + (botsList.dataset.count || 0) + ')';
-            }
-        }
+           const botsList = document.getElementById('bots-' + serverId);
+           const toggleBtn = document.getElementById('toggle-' + serverId);
+           if (botsList.classList.contains('hidden')) {
+               botsList.classList.remove('hidden');
+               toggleBtn.textContent = '隐藏假人玩家列表';
+           } else {
+               botsList.classList.add('hidden');
+               toggleBtn.textContent = '显示假人玩家列表 (' + (botsList.dataset.count || 0) + ')';
+           }
+       }
 
-        function updateServerStatus() {
+       function updateServerStatus() {
             // 根据当前访问方式选择合适的API路径
             let apiUrl = '/status/api/servers';
             // 当直接访问localhost:5000时使用直接路径
@@ -199,14 +308,15 @@
                 .then(response => response.json())
                 .then(data => {
                     const container = document.getElementById('serversContainer');
-                    if (!data || Object.keys(data).length === 0) {
+                    if (!data || data.code !== 200 || !data.data || Object.keys(data.data).length === 0) {
                         container.innerHTML = '<div class="server-card" style="text-align: center; grid-column: 1 / -1;"><h3>暂无服务器数据</h3><p>请确保插件已正确配置并运行</p></div>';
                         return;
                     }
                     
+                    const serverData = data.data;
                     container.innerHTML = '';
                     
-                    for (const [serverId, server] of Object.entries(data)) {
+                    for (const [serverId, server] of Object.entries(serverData)) {
                         const isOnline = isServerOnline(server.last_update);
                         const card = document.createElement('div');
                         card.className = 'server-card';
@@ -219,9 +329,9 @@
                         // 构建真实玩家列表HTML
                         let playersHtml = '';
                         if (players.length > 0) {
-                            playersHtml = players.map(player => 
-                                `<span class="player-tag">${player}</span>`
-                            ).join('');
+                            playersHtml = players.map(player =>
+                               '<span class="player-tag">' + player + '</span>'
+                           ).join('');
                         } else {
                             playersHtml = '<span class="empty-list">当前没有真实玩家在线</span>';
                         }
@@ -229,58 +339,183 @@
                         // 构建假人玩家列表HTML
                         let botsHtml = '';
                         if (botCount > 0) {
-                            botsHtml = bots.map(bot => 
-                                `<span class="bot-tag">${bot}</span>`
-                            ).join('');
+                            botsHtml = bots.map(bot =>
+                               '<span class="bot-tag">' + bot + '</span>'
+                           ).join('');
                         } else {
                             botsHtml = '<span class="empty-list">当前没有假人玩家在线</span>';
                         }
                         
-                        card.innerHTML = `
-                            <div class="server-name">
-                                <span>${server.server_name || serverId}</span>
-                                <span class="status-indicator ${isOnline ? 'online' : 'offline'}">${isOnline ? '●' : '○'}</span>
-                            </div>
-                            <div class="status-item">
-                                <span class="label">状态:</span>
-                                <span class="value">${isOnline ? '🟢 在线' : '🔴 离线'}</span>
-                            </div>
-                            <div class="status-item">
-                                <span class="label">内存使用率:</span>
-                                <span class="value">${server.memory_usage ? server.memory_usage.toFixed(1) + '%' : 'N/A'}</span>
-                            </div>
-                            <div class="status-item">
-                                <span class="label">运行时间:</span>
-                                <span class="value">${server.uptime ? formatUptime(server.uptime) : 'N/A'}</span>
-                            </div>
-                            <div class="status-item">
-                                <span class="label">真实玩家:</span>
-                                <span class="value">${server.player_count || 0}</span>
-                            </div>
-                            <div class="status-item">
-                                <span class="label">玩家列表:</span>
-                            </div>
-                            <div class="players-list">
-                                ${playersHtml}
-                            </div>
-                            <div class="bots-section">
-                                <div class="status-item">
-                                    <span class="label">假人玩家:</span>
-                                    <span class="value">${botCount}</span>
-                                </div>
-                                <button class="bots-toggle" id="toggle-${serverId}" onclick="toggleBots('${serverId}')">
-                                    ${botCount > 0 ? '显示假人玩家列表 (' + botCount + ')' : '暂无假人玩家'}
-                                </button>
-                                <div class="bots-list hidden" id="bots-${serverId}" data-count="${botCount}">
-                                    <div class="bots-list-content">
-                                        ${botsHtml}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="update-time">
-                                最后更新: ${server.last_update ? new Date(server.last_update).toLocaleString('zh-CN') : 'N/A'}
-                            </div>
-                        `;
+                        // 获取玩家详细信息
+                        // 根据当前访问方式选择合适的API路径
+                        let playersApiUrl = '/status/api/players_with_last_played?server_id=' + encodeURIComponent(serverId);
+                        // 当直接访问localhost:5000时使用直接路径
+                        if (window.location.port === '5000') {
+                            playersApiUrl = '/api/players_with_last_played?server_id=' + encodeURIComponent(serverId);
+                        }
+                        
+                        fetch(playersApiUrl)
+                            .then(response => response.json())
+                            .then(playersData => {
+                                // 检查响应是否成功
+                                if (playersData && playersData.code === 200) {
+                                    // 构建玩家详细信息HTML
+                                    let playersDetailHtml = '';
+                                    if (playersData.data && playersData.data.length > 0) {
+                                        playersDetailHtml = playersData.data.map(player =>
+                                           '<div class="player-detail">' +
+                                               '<span class="player-tag">' + player.player_name + '</span>' +
+                                               '<span class="player-last-played">最后游戏: ' + (player.last_play_time || 'N/A') + '</span>' +
+                                               '<span class="player-time-since-last-played">距离上次游戏: ' + (player.time_since_last_played_formatted || 'N/A') + '</span>' +
+                                           '</div>'
+                                       ).join('');
+                                    } else {
+                                        playersDetailHtml = '<span class="empty-list">当前没有玩家数据</span>';
+                                    }
+                                    
+                                    card.innerHTML =
+                                       '<div class="server-name">' +
+                                           '<span>' + (server.server_name || serverId) + '</span>' +
+                                           '<span class="status-indicator ' + (isOnline ? 'online' : 'offline') + '">' + (isOnline ? '●' : '○') + '</span>' +
+                                       '</div>' +
+                                       '<div class="status-item">' +
+                                           '<span class="label">状态:</span>' +
+                                           '<span class="value">' + (isOnline ? '🟢 在线' : '🔴 离线') + '</span>' +
+                                       '</div>' +
+                                       '<div class="status-item">' +
+                                           '<span class="label">内存使用率:</span>' +
+                                           '<span class="value">' + (server.memory_usage ? server.memory_usage.toFixed(1) + '%' : 'N/A') + '</span>' +
+                                       '</div>' +
+                                       '<div class="status-item">' +
+                                           '<span class="label">运行时间:</span>' +
+                                           '<span class="value">' + (server.uptime ? formatUptime(server.uptime) : 'N/A') + '</span>' +
+                                       '</div>' +
+                                       '<div class="status-item">' +
+                                           '<span class="label">真实玩家:</span>' +
+                                           '<span class="value">' + (server.player_count || 0) + '</span>' +
+                                       '</div>' +
+                                       '<div class="status-item">' +
+                                           '<span class="label">玩家列表:</span>' +
+                                       '</div>' +
+                                       '<div class="players-list">' +
+                                           playersHtml +
+                                       '</div>' +
+                                       '<div class="bots-section">' +
+                                           '<div class="status-item">' +
+                                               '<span class="label">假人玩家:</span>' +
+                                               '<span class="value">' + botCount + '</span>' +
+                                           '</div>' +
+                                           '<button class="bots-toggle" id="toggle-' + serverId + '" onclick="toggleBots(\'' + serverId + '\')">' +
+                                               (botCount > 0 ? '显示假人玩家列表 (' + botCount + ')' : '暂无假人玩家') +
+                                           '</button>' +
+                                           '<div class="bots-list hidden" id="bots-' + serverId + '" data-count="' + botCount + '">' +
+                                               '<div class="bots-list-content">' +
+                                                   botsHtml +
+                                               '</div>' +
+                                           '</div>' +
+                                       '</div>' +
+                                       '<div class="update-time">' +
+                                           '最后更新: ' + (server.last_update ? new Date(server.last_update).toLocaleString('zh-CN') : 'N/A') +
+                                       '</div>';
+                                } else {
+                                    // 如果获取玩家详细信息失败，仍然显示基本服务器信息
+                                    card.innerHTML =
+                                       '<div class="server-name">' +
+                                           '<span>' + (server.server_name || serverId) + '</span>' +
+                                           '<span class="status-indicator ' + (isOnline ? 'online' : 'offline') + '">' + (isOnline ? '●' : '○') + '</span>' +
+                                       '</div>' +
+                                       '<div class="status-item">' +
+                                           '<span class="label">状态:</span>' +
+                                           '<span class="value">' + (isOnline ? '🟢 在线' : '🔴 离线') + '</span>' +
+                                       '</div>' +
+                                       '<div class="status-item">' +
+                                           '<span class="label">内存使用率:</span>' +
+                                           '<span class="value">' + (server.memory_usage ? server.memory_usage.toFixed(1) + '%' : 'N/A') + '</span>' +
+                                       '</div>' +
+                                       '<div class="status-item">' +
+                                           '<span class="label">运行时间:</span>' +
+                                           '<span class="value">' + (server.uptime ? formatUptime(server.uptime) : 'N/A') + '</span>' +
+                                       '</div>' +
+                                       '<div class="status-item">' +
+                                           '<span class="label">真实玩家:</span>' +
+                                           '<span class="value">' + (server.player_count || 0) + '</span>' +
+                                       '</div>' +
+                                       '<div class="status-item">' +
+                                           '<span class="label">玩家列表:</span>' +
+                                       '</div>' +
+                                       '<div class="players-list">' +
+                                           playersHtml +
+                                       '</div>' +
+                                       '<div class="bots-section">' +
+                                           '<div class="status-item">' +
+                                               '<span class="label">假人玩家:</span>' +
+                                               '<span class="value">' + botCount + '</span>' +
+                                           '</div>' +
+                                           '<button class="bots-toggle" id="toggle-' + serverId + '" onclick="toggleBots(\'' + serverId + '\')">' +
+                                               (botCount > 0 ? '显示假人玩家列表 (' + botCount + ')' : '暂无假人玩家') +
+                                           '</button>' +
+                                           '<div class="bots-list hidden" id="bots-' + serverId + '" data-count="' + botCount + '">' +
+                                               '<div class="bots-list-content">' +
+                                                   botsHtml +
+                                               '</div>' +
+                                           '</div>' +
+                                       '</div>' +
+                                       '<div class="update-time">' +
+                                           '最后更新: ' + (server.last_update ? new Date(server.last_update).toLocaleString('zh-CN') : 'N/A') +
+                                       '</div>';
+                                }
+                            })
+                            .catch(error => {
+                                console.error('获取玩家详细信息失败:', error);
+                                // 如果获取玩家详细信息失败，仍然显示基本服务器信息
+                                card.innerHTML =
+                                   '<div class="server-name">' +
+                                       '<span>' + (server.server_name || serverId) + '</span>' +
+                                       '<span class="status-indicator ' + (isOnline ? 'online' : 'offline') + '">' + (isOnline ? '●' : '○') + '</span>' +
+                                   '</div>' +
+                                   '<div class="status-item">' +
+                                       '<span class="label">状态:</span>' +
+                                       '<span class="value">' + (isOnline ? '🟢 在线' : '🔴 离线') + '</span>' +
+                                   '</div>' +
+                                   '<div class="status-item">' +
+                                       '<span class="label">内存使用率:</span>' +
+                                       '<span class="value">' + (server.memory_usage ? server.memory_usage.toFixed(1) + '%' : 'N/A') + '</span>' +
+                                   '</div>' +
+                                   '<div class="status-item">' +
+                                       '<span class="label">运行时间:</span>' +
+                                       '<span class="value">' + (server.uptime ? formatUptime(server.uptime) : 'N/A') + '</span>' +
+                                   '</div>' +
+                                   '<div class="status-item">' +
+                                       '<span class="label">真实玩家:</span>' +
+                                       '<span class="value">' + (server.player_count || 0) + '</span>' +
+                                   '</div>' +
+                                   '<div class="status-item">' +
+                                       '<span class="label">玩家列表:</span>' +
+                                   '</div>' +
+                                   '<div class="players-list">' +
+                                       playersHtml +
+                                   '</div>' +
+                                   '<div class="bots-section">' +
+                                       '<div class="status-item">' +
+                                           '<span class="label">假人玩家:</span>' +
+                                           '<span class="value">' + botCount + '</span>' +
+                                       '</div>' +
+                                       '<button class="bots-toggle" id="toggle-' + serverId + '" onclick="toggleBots(\'' + serverId + '\')">' +
+                                           (botCount > 0 ? '显示假人玩家列表 (' + botCount + ')' : '暂无假人玩家') +
+                                       '</button>' +
+                                       '<div class="bots-list hidden" id="bots-' + serverId + '" data-count="' + botCount + '">' +
+                                           '<div class="bots-list-content">' +
+                                               botsHtml +
+                                           '</div>' +
+                                       '</div>' +
+                                   '</div>' +
+                                   '<div class="update-time">' +
+                                       '最后更新: ' + (server.last_update ? new Date(server.last_update).toLocaleString('zh-CN') : 'N/A') +
+                                   '</div>' +
+                                   '<div class="error-message">' +
+                                       '获取玩家详细信息失败: ' + error.message +
+                                   '</div>';
+                            });
                         
                         container.appendChild(card);
                     }
@@ -301,6 +536,317 @@
         
         // 每30秒刷新一次
         setInterval(updateServerStatus, 300000);
+        
+        // 查询玩家游戏时长
+        function searchPlayer() {
+            const playerName = document.getElementById('playerNameInput').value.trim();
+            if (!playerName) {
+                alert('请输入玩家名称');
+                return;
+            }
+            
+            const resultContainer = document.getElementById('playerSearchResult');
+            resultContainer.style.display = 'block';
+            resultContainer.innerHTML = '<div class="loading">查询中...</div>';
+            
+            // 根据当前访问方式选择合适的API路径
+            let apiUrl = '/status/api/players/' + encodeURIComponent(playerName);
+            // 当直接访问localhost:5000时使用直接路径
+            if (window.location.port === '5000') {
+                apiUrl = '/api/players/' + encodeURIComponent(playerName);
+            }
+            
+            fetch(apiUrl)
+                .then(response => response.json())
+                .then(data => {
+                    if (!data || data.code !== 200) {
+                        resultContainer.innerHTML =
+                            '<div class="server-card" style="text-align: center; grid-column: 1 / -1;">' +
+                            '<h3>❌ 查询失败</h3>' +
+                            '<p>' + (data?.message || '未找到该玩家的数据') + '</p>' +
+                            '</div>';
+                        return;
+                    }
+                    
+                    const playerData = data.data;
+                    let statsHtml = '';
+                    
+                    if (playerData.stats && playerData.stats.length > 0) {
+                        // 合并所有服务器的数据
+                        let totalPlayTime = 0;
+                        let totalSessions = 0;
+                        let lastPlayTime = null;
+                        
+                        playerData.stats.forEach(stat => {
+                            totalPlayTime += (stat.total_play_time !== null && stat.total_play_time !== undefined) ? stat.total_play_time : 0;
+                            totalSessions += stat.total_sessions || 0;
+                            
+                            // 获取最新的游戏时间
+                            if (stat.last_play_time) {
+                                if (!lastPlayTime || new Date(stat.last_play_time) > new Date(lastPlayTime)) {
+                                    lastPlayTime = stat.last_play_time;
+                                }
+                            }
+                        });
+                        
+                        statsHtml = '<div style="margin-top: 20px;">' +
+                                   '<h3 style="color: white; text-align: center; margin-bottom: 15px;">📊 玩家统计信息</h3>' +
+                                   '<div class="server-card" style="margin-bottom: 15px;">' +
+                                   '<div class="status-item">' +
+                                   '<span class="label">总游戏时长:</span>' +
+                                   '<span class="value">' + formatDuration(totalPlayTime) + '</span>' +
+                                   '</div>' +
+                                   '<div class="status-item">' +
+                                   '<span class="label">总登录次数:</span>' +
+                                   '<span class="value">' + totalSessions + '</span>' +
+                                   '</div>' +
+                                   '<div class="status-item">' +
+                                   '<span class="label">最后游戏时间:</span>' +
+                                   '<span class="value">' + (lastPlayTime || 'N/A') + '</span>' +
+                                   '</div>' +
+                                   '</div>' +
+                                   '</div>';
+                                   
+                        // 如果需要显示各服务器的详细信息，可以添加一个展开/收起的功能
+                        if (playerData.stats.length > 1) {
+                            statsHtml += '<div style="margin-top: 10px; text-align: center;">' +
+                                        '<button onclick="toggleServerDetails(this)" style="background: rgba(79, 172, 254, 0.3); color: white; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer;">显示各服务器详细信息</button>' +
+                                        '<div id="serverDetails" style="display: none; margin-top: 15px;">';
+                            
+                            playerData.stats.forEach(stat => {
+                                statsHtml += '<div class="server-card" style="margin-bottom: 10px;">' +
+                                            '<h4 style="margin-top: 0; color: white;">' + (stat.server_name || stat.server_id || '未知服务器') + '</h4>' +
+                                            '<div class="status-item">' +
+                                            '<span class="label">游戏时长:</span>' +
+                                            '<span class="value">' + ((stat.total_play_time !== null && stat.total_play_time !== undefined) ? formatDuration(stat.total_play_time) : 'N/A') + '</span>' +
+                                            '</div>' +
+                                            '<div class="status-item">' +
+                                            '<span class="label">登录次数:</span>' +
+                                            '<span class="value">' + (stat.total_sessions || 0) + '</span>' +
+                                            '</div>' +
+                                            '<div class="status-item">' +
+                                            '<span class="label">最后游戏:</span>' +
+                                            '<span class="value">' + (stat.last_play_time || 'N/A') + '</span>' +
+                                            '</div>' +
+                                            '</div>';
+                            });
+                            
+                            statsHtml += '</div></div>';
+                        }
+                    }
+                    
+                    let recordsHtml = '';
+                    if (playerData.records && playerData.records.length > 0) {
+                        recordsHtml = '<div style="margin-top: 20px;">' +
+                                     '<h3 style="color: white; text-align: center; margin-bottom: 15px;">📋 最近游戏记录</h3>' +
+                                     '<div class="server-card">';
+                        playerData.records.slice(0, 10).forEach(record => {
+                            recordsHtml +=
+                                '<div style="padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 10px;">' +
+                                '<div style="display: flex; justify-content: space-between; margin-bottom: 5px;">' +
+                                '<span style="font-weight: bold;">' + (record.server_name || record.server_id || '未知服务器') + '</span>' +
+                                '<span>' + (record.play_duration !== null && record.play_duration !== undefined ? formatDuration(record.play_duration) : '进行中') + '</span>' +
+                                '</div>' +
+                                '<div style="display: flex; justify-content: space-between; font-size: 0.9em; color: #ccc;">' +
+                                '<span>登录: ' + (record.login_date || 'N/A') + '</span>' +
+                                '<span>登出: ' + (record.logout_date || (record.play_duration === null || record.play_duration === undefined ? '进行中' : 'N/A')) + '</span>' +
+                                '</div>' +
+                                '</div>';
+                        });
+                        recordsHtml += '</div></div>';
+                    }
+                    
+                    resultContainer.innerHTML =
+                        '<div class="server-card">' +
+                        '<div style="text-align: center; margin-bottom: 20px;">' +
+                        '<h2 style="color: white; margin: 0;">玩家: ' + playerData.player_name + '</h2>' +
+                        '</div>' +
+                        statsHtml +
+                        recordsHtml +
+                        '</div>';
+                    
+                    // 显示清空按钮
+                    document.getElementById('clearSearchBtn').style.display = 'inline-block';
+                })
+                .catch(error => {
+                    console.error('查询玩家失败:', error);
+                    resultContainer.innerHTML =
+                        '<div class="server-card" style="text-align: center; grid-column: 1 / -1;">' +
+                        '<h3>❌ 查询失败</h3>' +
+                        '<p>请检查网络连接和后端服务</p>' +
+                        '<p style="font-size: 0.9em; color: #888;">错误信息: ' + error.message + '</p>' +
+                        '</div>';
+                });
+        }
+        
+        // 清空查询结果
+        function clearSearch() {
+            document.getElementById('playerNameInput').value = '';
+            document.getElementById('playerSearchResult').style.display = 'none';
+            document.getElementById('playerSearchResult').innerHTML = '';
+            document.getElementById('clearSearchBtn').style.display = 'none';
+        }
+        
+        // 支持回车键查询
+        document.getElementById('playerNameInput').addEventListener('keypress', function(event) {
+                    if (event.key === 'Enter') {
+                        searchPlayer();
+                    }
+                });
+                
+                // 切换显示服务器详细信息
+                function toggleServerDetails(button) {
+                    const details = document.getElementById('serverDetails');
+                    if (details.style.display === 'none') {
+                        details.style.display = 'block';
+                        button.textContent = '隐藏各服务器详细信息';
+                    } else {
+                        details.style.display = 'none';
+                        button.textContent = '显示各服务器详细信息';
+                    }
+                }
+                
+                // 排行榜功能
+                function formatDuration(seconds) {
+                    if (seconds === null || seconds === undefined) {
+                        return "N/A";
+                    }
+                    
+                    const hours = Math.floor(seconds / 3600);
+                    const minutes = Math.floor((seconds % 3600) / 60);
+                    const secs = Math.floor(seconds % 60);
+                    
+                    if (hours > 0) {
+                        return `${hours}小时${minutes}分钟${secs}秒`;
+                    } else if (minutes > 0) {
+                        return `${minutes}分钟${secs}秒`;
+                    } else {
+                        return `${secs}秒`;
+                    }
+                }
+
+                
+                // 排行榜功能
+                function formatDuration(seconds) {
+                    if (seconds === null || seconds === undefined) {
+                        return "N/A";
+                    }
+                    
+                    const hours = Math.floor(seconds / 3600);
+                    const minutes = Math.floor((seconds % 3600) / 60);
+                    const secs = Math.floor(seconds % 60);
+                    
+                    if (hours > 0) {
+                        return `${hours}小时${minutes}分钟${secs}秒`;
+                    } else if (minutes > 0) {
+                        return `${minutes}分钟${secs}秒`;
+                    } else {
+                        return `${secs}秒`;
+                    }
+                }
+                
+                // 当前显示的榜单类型
+                let currentLeaderboard = 'lastPlayed';
+                
+                function showLeaderboard(type) {
+                    currentLeaderboard = type;
+                    
+                    // 更新标签页样式
+                    document.getElementById('lastPlayedTab').style.background = type === 'lastPlayed' ? 'rgba(79, 172, 254, 0.5)' : 'rgba(79, 172, 254, 0.3)';
+                    document.getElementById('weeklyTab').style.background = type === 'weekly' ? 'rgba(102, 126, 234, 0.5)' : 'rgba(102, 126, 234, 0.3)';
+                    document.getElementById('monthlyTab').style.background = type === 'monthly' ? 'rgba(240, 147, 251, 0.5)' : 'rgba(240, 147, 251, 0.3)';
+                    
+                    // 加载对应榜单数据
+                    updateLeaderboard();
+                }
+                
+                function updateLeaderboard() {
+    let apiUrl, title;
+    
+    // 根据当前访问方式选择合适的API路径
+    let baseApiUrl = '/status/api/players/leaderboard';
+    // 当直接访问localhost:5000时使用直接路径
+    if (window.location.port === '5000') {
+        baseApiUrl = '/api/players/leaderboard';
+    }
+    
+    // 默认过滤假人
+    const filterBotsParam = 'filter_bots=true';
+    
+    switch(currentLeaderboard) {
+        case 'weekly':
+            apiUrl = baseApiUrl + '/weekly?' + filterBotsParam;
+            title = '游戏时长周榜';
+            break;
+        case 'monthly':
+            apiUrl = baseApiUrl + '/monthly?' + filterBotsParam;
+            title = '游戏时长月榜';
+            break;
+        default:
+            apiUrl = baseApiUrl + '?' + filterBotsParam;  // 默认过滤假人玩家
+            title = '摸鱼榜';
+    }
+    
+    fetch(apiUrl)
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('leaderboardContent');
+            console.log('排行榜数据:', data); // 调试信息
+            
+            if (!data || data.code !== 200 || !data.data || data.data.length === 0) {
+                container.innerHTML = '<div class="error-message">暂无玩家数据</div>';
+                return;
+            }
+            
+            const playersData = data.data;
+            let leaderboardHtml = '';
+            playersData.forEach((player, index) => {
+                const rank = index + 1;
+                const rankClass = rank <= 3 ? `rank-${rank}` : '';
+                
+                console.log('玩家数据:', player); // 调试信息
+                
+                if (currentLeaderboard === 'weekly') {
+                    leaderboardHtml +=
+                        '<div class="leaderboard-item ' + rankClass + '">' +
+                            '<div class="player-rank">' + rank + '</div>' +
+                            '<div class="player-name">' + (player.player_name || '未知玩家') + '</div>' +
+                            '<div class="player-total-time">总时长: ' + (player.total_play_time !== null && player.total_play_time !== undefined ? formatDuration(player.total_play_time) : 'N/A') + '</div>' +
+                            '<div class="player-weekly-time">周时长: ' + (player.weekly_play_time !== null && player.weekly_play_time !== undefined ? formatDuration(player.weekly_play_time) : 'N/A') + '</div>' +
+                        '</div>';
+                } else if (currentLeaderboard === 'monthly') {
+                    leaderboardHtml +=
+                        '<div class="leaderboard-item ' + rankClass + '">' +
+                            '<div class="player-rank">' + rank + '</div>' +
+                            '<div class="player-name">' + (player.player_name || '未知玩家') + '</div>' +
+                            '<div class="player-total-time">总时长: ' + (player.total_play_time !== null && player.total_play_time !== undefined ? formatDuration(player.total_play_time) : 'N/A') + '</div>' +
+                            '<div class="player-monthly-time">月时长: ' + (player.monthly_play_time !== null && player.monthly_play_time !== undefined ? formatDuration(player.monthly_play_time) : 'N/A') + '</div>' +
+                        '</div>';
+                    } else {
+                    leaderboardHtml +=
+                        '<div class="leaderboard-item ' + rankClass + '">' +
+                            '<div class="player-rank">' + rank + '</div>' +
+                            '<div class="player-name">' + (player.player_name || '未知玩家') + '</div>' +
+                            '<div class="player-last-played">最后游戏: ' + (player.last_play_time || 'N/A') + '</div>' +
+                            '<div class="player-time-since-last-played">距离上次游戏: ' + (player.time_since_last_played_formatted || 'N/A') + '</div>' +
+                        '</div>';
+                }
+            });
+            
+            container.innerHTML = leaderboardHtml;
+        })
+        .catch(error => {
+            console.error('获取排行榜数据失败:', error);
+            document.getElementById('leaderboardContent').innerHTML =
+                '<div class="error-message">获取排行榜数据失败: ' + error.message + '</div>';
+        });
+}
+                
+                // 初始加载排行榜
+                updateLeaderboard();
+                
+                // 每5分钟刷新一次排行榜
+                setInterval(updateLeaderboard, 300000);
     </script>
 </body>
 </html>

@@ -4,20 +4,68 @@ import psutil
 import requests
 import json
 import os
+import mysql.connector
+from mysql.connector import Error
+from threading import Lock
 
 
 
-# 初始化服务器启动时间
 def init_server_startup_time():
     try:
-        # 获取当前进程的启动时间
         process = psutil.Process(os.getpid())
         return process.create_time()
     except Exception as e:
-        # 如果无法获取进程启动时间，则使用当前时间
         return time.time()
 
-# 保存服务器启动时间到文件
+MYSQL_CONFIG = {
+    'host': 'localhost',
+    'database': 'server_status',
+    'user': 'server_status',
+    'password': 'SCTserver',
+    'charset': 'utf8mb4',
+    'autocommit': True,
+    'raise_on_warnings': False,
+    'connection_timeout': 10
+}
+
+player_record_lock = Lock()
+
+def get_mysql_connection(server: PluginServerInterface):
+    try:
+        connection = mysql.connector.connect(**MYSQL_CONFIG)
+        return connection
+    except Error as e:
+        server.logger.error(f"连接MySQL数据库时出错: {e}")
+        return None
+    except Exception as e:
+        server.logger.error(f"连接MySQL数据库时发生未知错误: {e}")
+        return None
+
+
+
+                        
+def get_online_players(server: PluginServerInterface):
+
+    try:
+        conn = get_mysql_connection(server)
+        if conn is None:
+
+            return []
+            
+        cursor = conn.cursor()
+
+        server_id = config.get("server_id", "server_1")
+        cursor.execute('''
+            SELECT DISTINCT player_name FROM player_sessions
+            WHERE server_id = %s AND leave_time IS NULL
+        ''', (server_id,))
+        rows = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        return [row[0] for row in rows]
+    except Exception as e:
+        return []
+
 def save_server_startup_time_to_file(startup_time):
     try:
         server_dir = os.path.join('config', 'server_status')
@@ -26,9 +74,9 @@ def save_server_startup_time_to_file(startup_time):
         with open(startup_time_file, 'w') as f:
             json.dump({"startup_time": startup_time, "pid": os.getpid()}, f)
     except Exception as e:
-        pass  # 忽略保存错误
+        pass  
 
-# 从文件加载服务器启动时间
+
 def load_server_startup_time_from_file():
     try:
         startup_time_file = os.path.join('config', 'server_status', 'startup_time.json')
@@ -36,31 +84,26 @@ def load_server_startup_time_from_file():
             with open(startup_time_file, 'r') as f:
                 data = json.load(f)
                 saved_pid = data.get("pid")
-                # 如果PID匹配，说明是插件重载而不是服务器重启
                 if saved_pid == os.getpid():
                     return data.get("startup_time", time.time())
                 else:
-                    # PID不匹配，说明服务器已重启，创建新的启动时间
                     startup_time = init_server_startup_time()
                     save_server_startup_time_to_file(startup_time)
                     return startup_time
         else:
-            # 如果文件不存在，创建新的启动时间记录
             startup_time = init_server_startup_time()
             save_server_startup_time_to_file(startup_time)
             return startup_time
     except Exception as e:
-        # 出现错误时使用当前时间
         startup_time = init_server_startup_time()
         save_server_startup_time_to_file(startup_time)
         return startup_time
 
-# 获取服务器启动时间
+
 def get_server_startup_time():
     global server_startup_time
     return server_startup_time
 
-# 在模块加载时初始化服务器启动时间
 server_startup_time = load_server_startup_time_from_file()
 
 startup_time = time.time()
@@ -70,19 +113,25 @@ DEFAULT_CONFIG = {
     "web_server_url": "http://localhost:5000/api/server_status",
     "server_id": "server_1",
     "report_interval": 60,
-    "bot_prefixes": ["假的bot", "假的Bot_"]  # 支持多个前缀
+    "bot_prefixes": ["假的bot", "假的Bot_"]  
 }
 
 config = None
-# 添加一个标志来控制报告线程
+
 reporting = False
 
+server_interface = None
+
 def on_load(server: PluginServerInterface, prev_module):
-    global startup_time, config
+    global startup_time, config, DB_PATH, server_interface
+    server_interface = server  
+    
+    # 先初始化配置
     config = server.load_config_simple('config.json', default_config=DEFAULT_CONFIG)
+    DB_PATH = config.get("database_path", "config/server_status/player_records.db")
+    
     startup_time = time.time()
     server.logger.info('服务器状态插件已加载')
-    server.logger.info(f'服务器名称: {config["server_name"]}')
     server.register_command(
         Literal('!!status')
         .runs(lambda src: on_status_command(src))
@@ -96,15 +145,25 @@ def on_load(server: PluginServerInterface, prev_module):
             .requires(lambda src: src.has_permission(2))
             .runs(lambda src: show_bots(src))
         )
+        .then(
+            Literal('players')
+            .requires(lambda src: src.has_permission(2))
+            .runs(lambda src: show_online_players(src))
+        )
     )
     server.register_help_message('!!status', '查看服务器运行时间和在线玩家数量')
     server.register_help_message('!!status connect', '测试与后端服务器的连接')
     server.register_help_message('!!status bots', '查看在线的假人玩家列表')
+    server.register_help_message('!!status players', '查看当前在线的真实玩家列表')
 
-    # 启动定期报告状态的线程
+
+    server.register_event_listener('PlayerJoined', on_player_joined)
+    server.register_event_listener('PlayerLeft', on_player_left)
+
+
     start_reporting(server)
     
-    # 自动连接后端服务器并发送初始状态
+
     auto_connect_to_backend(server)
 
 
@@ -116,11 +175,7 @@ def on_unload(server: PluginServerInterface):
 
 @new_thread("ServerStatus-AutoConnect")
 def auto_connect_to_backend(server: PluginServerInterface):
-    """插件启动后自动连接后端服务器"""
-    server.logger.info("正在自动连接到后端服务器...")
-    
     try:
-        # 先发送连接通知
         connect_data = {
             "server_id": config["server_id"],
             "server_name": config["server_name"],
@@ -134,24 +189,22 @@ def auto_connect_to_backend(server: PluginServerInterface):
         )
         
         if response.status_code == 200:
-            server.logger.info("成功连接到后端服务器")
+            pass
         else:
-            server.logger.warning(f"连接后端服务器时出现问题，状态码: {response.status_code}")
+            pass
             
-        # 立即发送一次完整状态
-        time.sleep(2)  # 等待2秒确保连接建立
+        time.sleep(2)
         send_full_status_update(server)
         
     except requests.exceptions.Timeout:
-        server.logger.warning("连接后端服务器超时")
+        pass
     except requests.exceptions.ConnectionError:
-        server.logger.warning("无法连接到后端服务器")
+        pass
     except Exception as e:
-        server.logger.warning(f"连接后端服务器时发生未知错误: {str(e)}")
+        pass
 
 
 def send_full_status_update(server: PluginServerInterface):
-    """立即发送一次完整的服务器状态"""
     try:
         status_data = build_status_data(server)
         response = requests.post(
@@ -161,11 +214,11 @@ def send_full_status_update(server: PluginServerInterface):
         )
         
         if response.status_code == 200:
-            server.logger.info("成功发送初始服务器状态")
+            pass
         else:
-            server.logger.warning(f"发送初始服务器状态时出现问题，状态码: {response.status_code}")
+            pass
     except Exception as e:
-        server.logger.warning(f"发送初始服务器状态时出现错误: {e}")
+        pass
 
 
 @new_thread("ServerStatus-Query") 
@@ -175,7 +228,6 @@ def on_status_command(src: CommandSource):
 
 @new_thread("ServerStatus-Bots")
 def show_bots(src: CommandSource):
-    """显示假人玩家列表"""
     player_list = get_filtered_player_list()
     bots = player_list["bots"]
     
@@ -188,13 +240,35 @@ def show_bots(src: CommandSource):
         src.reply("§7当前没有在线的假人玩家")
 
 
+@new_thread("ServerStatus-OnlinePlayers")
+def show_online_players(src: CommandSource):
+    online_players = get_online_players()
+    
+    bot_prefixes = config.get("bot_prefixes", ["假的bot"])
+    real_players = []
+    for player in online_players:
+        is_bot = False
+        for prefix in bot_prefixes:
+            if player.startswith(prefix):
+                is_bot = True
+                break
+        if not is_bot:
+            real_players.append(player)
+    
+    if real_players:
+        src.reply(f"§7======= §6在线真实玩家列表 §7=======")
+        for player in real_players:
+            src.reply(f"§7- §6{player}")
+        src.reply(f"§7=========================")
+    else:
+        src.reply("§7当前没有在线的真实玩家")
+
+
 @new_thread("ServerStatus-TestConnection")
 def test_connection(src: CommandSource):
-    """测试与后端服务器的连接"""
     src.reply(f"§7[§6ServerStatus§7] 正在测试与后端服务器的连接...")
     
     try:
-        # 发送一个测试请求到配置的URL
         test_data = {
             "server_id": config["server_id"],
             "test_connection": True
@@ -227,14 +301,11 @@ def test_connection(src: CommandSource):
 
 @new_thread("ServerStatus-Reporter")
 def start_reporting(server: PluginServerInterface):
-    """启动定期报告服务器状态的线程"""
     global reporting
     reporting = True
     
-    # 等待服务器完全启动
     time.sleep(5)
     
-    # 立即发送一次状态更新
     try:
         status_data = build_status_data(server)
         response = requests.post(
@@ -244,16 +315,14 @@ def start_reporting(server: PluginServerInterface):
         )
         
         if response.status_code != 200:
-            server.logger.warning(f"发送初始服务器状态时出现问题，状态码: {response.status_code}")
+            pass
     except Exception as e:
-        server.logger.warning(f"发送初始服务器状态时出现错误: {e}")
+        pass
     
     while reporting:
         try:
-            # 构造服务器状态数据
             status_data = build_status_data(server)
             
-            # 发送数据到后端服务器
             response = requests.post(
                 config["web_server_url"],
                 json=status_data,
@@ -261,14 +330,13 @@ def start_reporting(server: PluginServerInterface):
             )
             
             if response.status_code != 200:
-                server.logger.warning(f"发送服务器状态时出现问题，状态码: {response.status_code}")
+                pass
                 
         except requests.exceptions.RequestException as e:
-            server.logger.warning(f"发送服务器状态时出现网络错误: {e}")
+            pass
         except Exception as e:
-            server.logger.warning(f"发送服务器状态时出现未知错误: {e}")
+            pass
             
-        # 等待指定的时间间隔
         for _ in range(config["report_interval"]):
             if not reporting:
                 return
@@ -276,17 +344,14 @@ def start_reporting(server: PluginServerInterface):
 
 
 def get_filtered_player_list():
-    """获取过滤后的玩家列表，分离真实玩家和假人"""
     import minecraft_data_api as api
     try:
         amount, limit, players = api.get_server_player_list()
         if players is None:
             players = []
             
-        # 分离真实玩家和假人
         real_players = []
         bots = []
-        # 支持多个前缀
         bot_prefixes = config.get("bot_prefixes", ["假的bot"])
         
         for player in players:
@@ -317,26 +382,23 @@ def get_filtered_player_list():
 
 
 def build_status_data(server: PluginServerInterface) -> dict:
-    """构建服务器状态数据"""
     def get_memory_used():
         return psutil.virtual_memory().percent
     
     def get_uptime():
-        # 使用保存的服务器启动时间计算运行时间
         return int(time.time() - get_server_startup_time())
     
     player_info = get_filtered_player_list()
     
-    # 构造要发送的数据
     status_data = {
         "server_id": config["server_id"],
         "server_name": config["server_name"],
         "uptime": get_uptime(),
         "memory_usage": get_memory_used(),
-        "players": player_info["real_players"],  # 只发送真实玩家
-        "bots": player_info["bots"],  # 单独发送假人玩家列表
-        "player_count": player_info["real_amount"],  # 只计算真实玩家数量
-        "bot_count": player_info["bots_amount"],  # 单独统计假人数量
+        "players": player_info["real_players"],
+        "bots": player_info["bots"],
+        "player_count": player_info["real_amount"],
+        "bot_count": player_info["bots_amount"],
         "last_update": time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime())
     }
     
@@ -349,7 +411,6 @@ def get_server_info(server: PluginServerInterface) -> RTextList:
         return f"{psutil.virtual_memory().percent}"
     
     def get_uptime():
-        # 使用服务器进程的启动时间计算运行时间
         uptime_seconds = int(time.time() - get_server_startup_time())
         hours = uptime_seconds // 3600
         minutes = (uptime_seconds % 3600) // 60

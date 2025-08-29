@@ -1,0 +1,119 @@
+/* 默认背景样式 */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f0f0f0;
+    background-image: url('./uploads/background.jpg');
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-attachment: fixed;
+    background-size: cover;
+    min-height: 100vh;
+}
+
+/* 增强服务器卡片的透明度和毛玻璃效果 */
+.server-card {
+    background: rgba(255, 255, 255, 0.15) !important; /* 增加透明度 */
+    border-radius: 15px;
+    padding: 25px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px) !important; /* 增强毛玻璃效果 */
+    -webkit-backdrop-filter: blur(10px) !important; /* Safari兼容 */
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    transition: all 0.3s ease;
+}
+
+.server-card:hover {
+    background: rgba(255, 255, 255, 0.25) !important; /* 悬停时增加透明度 */
+    transform: translateY(-5px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+/* 增强排行榜容器的透明度和毛玻璃效果 */
+.leaderboard-container {
+    background: rgba(255, 255, 255, 0.15) !important; /* 增加透明度 */
+    border-radius: 15px;
+    padding: 25px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px) !important; /* 增强毛玻璃效果 */
+    -webkit-backdrop-filter: blur(10px) !important; /* Safari兼容 */
+    border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+/* 头部标题区域的透明度和毛玻璃效果 */
+.header {
+    background: rgba(255, 255, 255, 0.1) !important; /* 增加透明度 */
+    border-radius: 15px;
+    padding: 20px;
+    backdrop-filter: blur(5px) !important; /* 毛玻璃效果 */
+    -webkit-backdrop-filter: blur(5px) !important; /* Safari兼容 */
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    margin-bottom: 30px !important;
+}
+
+/* 玩家详情区域的透明度 */
+.player-detail {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-radius: 10px;
+    padding: 10px;
+    margin: 5px 0;
+    backdrop-filter: blur(3px) !important;
+    -webkit-backdrop-filter: blur(3px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 玩家标签的透明度 */
+.player-tag, .bot-tag {
+    background: rgba(102, 126, 234, 0.3) !important; /* 半透明背景 */
+    backdrop-filter: blur(2px) !important;
+    -webkit-backdrop-filter: blur(2px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.bot-tag {
+    background: rgba(240, 147, 251, 0.3) !important; /* 半透明背景 */
+}
+
+/* 排行榜项目的透明度 */
+.leaderboard-item {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-radius: 10px;
+    margin: 10px 0;
+    backdrop-filter: blur(3px) !important;
+    -webkit-backdrop-filter: blur(3px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 15px !important;
+}
+
+/* 按钮的透明度和毛玻璃效果 */
+.bots-toggle {
+    background: rgba(79, 172, 254, 0.3) !important;
+    backdrop-filter: blur(2px) !important;
+    -webkit-backdrop-filter: blur(2px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 2px 10px rgba(79, 172, 254, 0.2) !important;
+}
+
+.bots-toggle:hover {
+    background: rgba(79, 172, 254, 0.4) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(79, 172, 254, 0.3) !important;
+}
+
+/* 返回链接的透明度 */
+.back-link {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-radius: 20px;
+    padding: 10px 20px;
+    backdrop-filter: blur(3px) !important;
+    -webkit-backdrop-filter: blur(3px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+}
+
+.back-link:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+    text-decoration: none;
+}
+
